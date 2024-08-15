@@ -1,7 +1,15 @@
 # how to run it
 * poetry install
 * poetry run python main.py (get monthly optimal yield with trading off between capital efficiency and imp loss)
+* poetry run python lib_data.py (get historical data from Uniswap V3 Subgraph)
 * poetry run python main_avg_yld.py (range to get average yeild)
+* poetry run python main_rebal_rebal.py (LP mining strategies)
+
+# Wallets for Pools' Yield farming (LP mining strategies)
+* 0x0aff782b30a81eb4d4104eb9bf0ddb0a19920981
+* 0xee8595c67193c49ceac73cbeb9c0efa83ef00f62
+* 0x9c7e0d69b96c365b22cbf2ec1f9cad761ff696e5
+* 0x8f4daa33706d70677fd69e4e0d47e595bc820e95
 
 # detail
 methodology explanation can be found in medium article: 

@@ -207,10 +207,10 @@ if __name__ == "__main__":
     df_pool_stats=pd.DataFrame()
 
     for index in range(len(df_pool_input)) :
-        pool_addr = df_pool_input.at[index,'poolAddress'];
-        token0 = df_pool_input.at[index,'token0'];
-        token1 = df_pool_input.at[index,'token1'];
-        fee_bps = df_pool_input.at[index,'fee_bps'];
+        pool_addr = df_pool_input.at[index,'poolAddress']
+        token0 = df_pool_input.at[index,'token0']
+        token1 = df_pool_input.at[index,'token1']
+        fee_bps = df_pool_input.at[index,'fee_bps']
         df_result = get_pool_performance_statistic(pool_addr, token0, token1,fee_bps, 2022)
         # print(df_result)
         df_pool_stats = pd.concat([df_pool_stats, df_result], ignore_index=True)

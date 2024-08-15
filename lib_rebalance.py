@@ -2,13 +2,15 @@ import numpy as np
 import main as m
 from math import sqrt
 import pandas as pd
+from datetime import datetime
 
-def get_lp_evaluation_scenarios():
+def get_lp_evaluation_scenarios(pool, wallet_created_at):
     
     
     date_begin = '2021-05-05' # price: 0.060538
     date_end = '2023-12-20' # price: 0.060388
 
+    last_day = '2024-02-28'
     list_scenarios = [
         ['recent 1 year backtest', '2022-12-15', '2023-12-15'],
         ['1 year price revert-back', '2022-05-13', '2023-05-13'],
@@ -16,13 +18,14 @@ def get_lp_evaluation_scenarios():
         ['1 year maximum price-up', '2022-06-12', '2023-06-12' ],
         ['history case max price-down','2021-12-09',  '2022-06-19' ],
         ['history case max price-up','2022-06-19',  '2022-09-09' ], 
-        ['history case max first-down-then-up','2021-12-09',  '2022-09-09' ]
+        ['history case max first-down-then-up','2021-12-09',  '2022-09-09' ],
+        # ['from the created date of the wallet', wallet_created_at, last_day]
         
     ]
 
     list_scenarios_name = ['scenario_name', 'date_begin', 'date_end']
 
-    df_price = m.get_df_daily_price(date_begin,date_end)
+    df_price = m.get_df_daily_price(pool, date_begin,date_end)
     
     df_scenarios = pd.DataFrame(list_scenarios, columns=list_scenarios_name)
     df_scenarios['index'] = df_scenarios.index
@@ -43,7 +46,7 @@ def get_lp_evaluation_scenarios():
     # reset index as 0,1,... to maintan the sequence
     df_scenarios.set_index("index", inplace=True)
     df_scenarios.sort_index(ascending=True, inplace=True)
-
+    
     return df_scenarios
 
 

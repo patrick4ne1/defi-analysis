@@ -3,11 +3,20 @@ from datetime import datetime, timedelta
 import pandas as pd
 import lib_const
 import ast
+import os
+import sys
 
-def get_crypto_price_data_csv(date_begin=datetime(2000, 1,1), date_end=datetime(3000,1,1)):
+def get_crypto_price_data_csv(pool_address, date_begin=datetime(2000, 1,1), date_end=datetime(3000,1,1)):
 
-    file_name = lib_const.get_crypto_price_filename("pool_data_0xcbcdf9626bc03e24f779434178a73a0b4bad62ed_WBTC_WETH.csv")
-    df=pd.read_csv(file_name)
+    file_name = lib_const.get_pool_filename(pool_address)
+    
+    if os.path.exists(file_name):
+        df=pd.read_csv(file_name)
+    else:
+        print("The historical data does not exist.")
+        print("Please run lib_data.py first!")
+        sys.exit(0)
+    
     df['date'] = pd.to_datetime(df['date'], unit='s')
     if(isinstance(date_begin, str)) :
         date_begin = datetime.strptime(date_begin, "%Y-%m-%d")
@@ -157,7 +166,7 @@ if __name__ == "__main__":
     load_all_pool_related_data = True
     if load_all_pool_related_data: # getting pool fee/vol related data
         
-        years = [2021, 2022, 2023]
+        years = [2021, 2022, 2023, 2024]
         
         result_df = pd.DataFrame()
         for pool_info in lib_const.pool_info_list:
@@ -180,7 +189,7 @@ if __name__ == "__main__":
     # result_df.head()
 
 
-    load_price_related_data = False;
+    load_price_related_data = False
     if load_price_related_data: # getting pool fee/vol related data
         # Set the start and end date
         start_date = datetime(2020, 11, 1)

@@ -4,28 +4,33 @@ import matplotlib.pyplot as plt
 import lib_logic as lib_lgc
 import lib_data
 
+from lib_const import pool_info_list
 
 # print("If you don't have data downloadeded and put as CSV in output folder, please run lib_data.py first!")
 # print("Set load_all_pool_related_data and load_price_related_data = True before run ")
-
-  
-def get_df_daily_fees(date_begin = "2009-01-01", date_end = "3000-01-01"):
+def get_df_daily_fees(pool_address, date_begin = "2009-01-01", date_end = "3000-01-01"):
  
-    pool_address = '0xcbcdf9626bc03e24f779434178a73a0b4bad62ed'
-    df = lib_data.get_uniswap_pool_data_csv(pool_address,date_begin, date_end )
+    df = lib_data.get_uniswap_pool_data_csv(pool_address, date_begin, date_end )
 
     df['daily_fee_rate'] = df['feesUSD'] / df['tvlUSD']
     df['date_i'] = df['date']
     df.set_index('date_i', inplace=True)
     return df[[ 'feesUSD', 'tvlUSD', 'daily_fee_rate']] # 'date',
 
-def get_df_daily_price(date_begin = '2021-03-01', date_end ="3000-01-01"):
+def get_df_daily_price(pool_address, date_begin = '2021-03-01', date_end ="3000-01-01"):
 
     # Load the CSV file
-    df =  lib_data.get_crypto_price_data_csv(date_begin, date_end)
+    df =  lib_data.get_crypto_price_data_csv(pool_address, date_begin, date_end)
+    
+    for pool_info in pool_info_list:
+        if pool_info[0] == pool_address:
+            token0 = pool_info[1]
+            token1 = pool_info[2]
+            break
+            
     # Filter rows related to ETH price in terms of BTC
-    df = df[df['token0_symbol'] == 'WBTC'] 
-    df = df[df['token1_symbol'] == 'WETH']
+    df = df[df['token0_symbol'] == token0] 
+    df = df[df['token1_symbol'] == token1]
     df["YYYYMM"] = df.index.strftime('%Y%m')
     df = add_monthly_price_change(df)
     
@@ -67,7 +72,7 @@ def get_mon_performance_by_range(range_down, df, benchmark_down = -0.3):
 
         ret_columns = ['YYYYMM', 'range_down', 'mon_total_price_chg', 'mon_total_fee_yield', 'coverage_rate', 'boost_factor', 'gross_return', 'imp_loss',  'net_return']
 
-        boost_factor = lib_lgc.get_liquidity_boost_given_range(prince_range=lower_bound, benchmark=benchmark_lower)
+        boost_factor = lib_lgc.get_liquidity_boswap_recntrost_given_range(prince_range=lower_bound, benchmark=benchmark_lower)
         result_mon = np.empty((len(df_mon_chg), len(ret_columns)))
 
         for mon_i in range(len(df_mon_chg)):
