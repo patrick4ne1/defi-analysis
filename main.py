@@ -3,7 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import lib_logic as lib_lgc
 import lib_data
-
+import sys
+import inquirer  
+import main_rebal_rebal
 from lib_const import pool_info_list
 
 # print("If you don't have data downloadeded and put as CSV in output folder, please run lib_data.py first!")
@@ -60,7 +62,8 @@ def get_df_comb_price_fee(df_price, df_fee):
     # df.drop(df[ df['month_last_date'].dt.day < 21 ].index, inplace=True) # filter out months with data < 3 weeks
     return df
 
-def get_mon_performance_by_range(range_down, df, benchmark_down = -0.3):
+def get_performance_by_range(range_down, df, rebalance_period='M', benchmark_down=-0.3):
+    if rebalance_period == "M":
         df_mon_chg = df[[ 'YYYYMM', 'Price_chg_vs_MM01']][df['month_last_date'] == df['date']]
         df_mon_chg.dropna(inplace=True)
 
@@ -72,17 +75,20 @@ def get_mon_performance_by_range(range_down, df, benchmark_down = -0.3):
 
         ret_columns = ['YYYYMM', 'range_down', 'mon_total_price_chg', 'mon_total_fee_yield', 'coverage_rate', 'boost_factor', 'gross_return', 'imp_loss',  'net_return']
 
-        boost_factor = lib_lgc.get_liquidity_boswap_recntrost_given_range(prince_range=lower_bound, benchmark=benchmark_lower)
+        boost_factor = lib_lgc.get_liquidity_boost_given_range(prince_range=lower_bound, benchmark=benchmark_lower)
+        
         result_mon = np.empty((len(df_mon_chg), len(ret_columns)))
 
         for mon_i in range(len(df_mon_chg)):
                 yyyymm = df_mon_chg['YYYYMM'].iloc[mon_i]
 
                 mon_total_price_chg = df_mon_chg['Price_chg_vs_MM01'].iloc[mon_i]
-
+                
                 df_yyyymm =  df_mon_day_ret[df_mon_day_ret['YYYYMM'] == yyyymm]
+
                 mon_total_observ = len(df_yyyymm)
                 mon_within_range =df_yyyymm['Price_chg_vs_MM01'].between(lower_bound, upper_bound).sum()
+                
                 coverage_rate= (mon_within_range / mon_total_observ)
 
                 mon_total_fee_yield = df_yyyymm['daily_fee_rate'].sum()
@@ -97,13 +103,99 @@ def get_mon_performance_by_range(range_down, df, benchmark_down = -0.3):
 
         df_mon_result = pd.DataFrame(data=result_mon, columns=ret_columns)
         return df_mon_result
+    # Grouping data by rebalancing period
+    elif rebalance_period == "W": 
+        df['Week'] = df['date'].dt.to_period('W')
+    
+        # Filter for the last day of each week
+        df_week_chg = df[df['date'] == df.groupby('Week')['date'].transform('max')]
+
+        # Extract daily returns excluding the first day of each week
+        df_week_day_ret = df[['Week', 'Price_chg_vs_MM01', 'daily_fee_rate']][df.groupby('Week')['date'].transform('min') != df['date']]
+
+        lower_bound = range_down
+        benchmark_lower = benchmark_down
+        upper_bound = lib_lgc.get_opposite_bin_limit_with_same_liquidity(lower_bound)
+
+        ret_columns = ['Week', 'range_down', 'week_total_price_chg', 'week_total_fee_yield', 'coverage_rate', 'boost_factor', 'gross_return', 'imp_loss', 'net_return']
+
+        boost_factor = lib_lgc.get_liquidity_boost_given_range(prince_range=lower_bound, benchmark=benchmark_lower)
+        
+        result_week = np.empty((len(df_week_chg), len(ret_columns)))
+
+        for week_i in range(len(df_week_chg)):
+            week_period = df_week_chg['Week'].iloc[week_i].start_time.timestamp()  # Convert to Unix timestamp (float)
+
+            week_total_price_chg = df_week_chg['Price_chg_vs_MM01'].iloc[week_i]
+            
+            df_week_period = df_week_day_ret[df_week_day_ret['Week'] == df_week_chg['Week'].iloc[week_i]]
+            
+            week_total_observ = len(df_week_period)
+            week_within_range = df_week_period['Price_chg_vs_MM01'].between(lower_bound, upper_bound).sum()
+            
+            coverage_rate = week_within_range / week_total_observ
+            week_total_fee_yield = df_week_period['daily_fee_rate'].sum()
+            gross_return = week_total_fee_yield * coverage_rate * boost_factor
+            imp_loss = lib_lgc.get_impermanent_loss_given_range(week_total_price_chg, lower_bound)
+            net_return = (1 + gross_return) * (1 + imp_loss) - 1
+
+            result_week[week_i, :] = np.array([week_period, lower_bound, week_total_price_chg, week_total_fee_yield, coverage_rate, boost_factor, gross_return, imp_loss, net_return])
+
+        df_week_result = pd.DataFrame(data=result_week, columns=ret_columns)
+        return df_week_result
+
+    else :    
+        df_daily_chg = df[['date', 'Price_chg_vs_MM01']][df['date'] == df['date']]
+        df_daily_chg.dropna(inplace=True)
+
+        # Daily return calculations
+        df_daily_ret = df[['date', 'Price_chg_vs_MM01', 'daily_fee_rate']][df['date'] == df['date']]
+
+        lower_bound = range_down
+        benchmark_lower = benchmark_down
+        upper_bound = lib_lgc.get_opposite_bin_limit_with_same_liquidity(lower_bound)
+
+        ret_columns = ['date', 'range_down', 'daily_total_price_chg', 'daily_total_fee_yield', 
+                    'coverage_rate', 'boost_factor', 'gross_return', 'imp_loss', 'net_return']
+
+        # Get liquidity boost factor
+        boost_factor = lib_lgc.get_liquidity_boost_given_range(prince_range=lower_bound, benchmark=benchmark_lower)
+
+        result_daily = np.empty((len(df_daily_chg), len(ret_columns)), dtype=object)  # Change to object dtype
+
+        for daily_i in range(len(df_daily_chg)):
+            date = df_daily_chg['date'].iloc[daily_i]
+
+            daily_total_price_chg = df_daily_chg['Price_chg_vs_MM01'].iloc[daily_i]
+            df_date = df_daily_ret[df_daily_ret['date'] == date]
+
+            if df_date.empty:
+                print("No data for the date:", date)
+                continue
+
+            daily_total_observ = len(df_date)
+            daily_within_range = df_date['Price_chg_vs_MM01'].between(lower_bound, upper_bound).sum()
+            coverage_rate = (daily_within_range / daily_total_observ) if daily_total_observ > 0 else 0
+            daily_total_fee_yield = df_date['daily_fee_rate'].sum()
+
+            gross_return = daily_total_fee_yield * coverage_rate * boost_factor
+            imp_loss = lib_lgc.get_impermanent_loss_given_range(daily_total_price_chg, lower_bound)
+            net_return = (1 + gross_return) * (1 + imp_loss) - 1
+
+            result_daily[daily_i, :] = np.array([
+                date, lower_bound, daily_total_price_chg, daily_total_fee_yield,
+                coverage_rate, boost_factor, gross_return, imp_loss, net_return
+            ])
+
+        df_daily_result = pd.DataFrame(data=result_daily, columns=ret_columns)
+        return df_daily_result
 
 
-def get_full_range_performance(range_down, df, benchmark_range =-0.3):
-    array_range_rst =  np.empty((len(range_down),4))
+def get_full_range_performance(range_down, df, rebalance_period = "M", benchmark_range =-0.3):
+    array_range_rst = np.empty((len(range_down),4))
     for range_i in range(len(range_down)):
             range_down_i = range_down[range_i]
-            df_i = get_mon_performance_by_range(range_down_i, df, benchmark_down=benchmark_range)
+            df_i = get_performance_by_range(range_down_i, df, rebalance_period, benchmark_down=benchmark_range)
             average_gross_return = df_i['gross_return'].median() #.mean()
             average_imp_loss = df_i['imp_loss'].median() #mean()
             average_net_return = df_i['net_return'].median() #.mean()
@@ -151,15 +243,38 @@ def main ():
     range_down = np.arange(-0.5, 0, 0.02)
     benchmark_range = -0.3
 
+    questions = [
+        inquirer.List('option',
+            message="Choose one",
+            choices=['USDC/WETH' , 'WBTC/WETH'],
+        ),
+    ]
+    answers = inquirer.prompt(questions)
+    pool = main_rebal_rebal.pool_address(answers['option'])
+    
+    questions = [
+        inquirer.List('option',
+            message="Choose Rebalancing Frequency(days)",
+            choices=["Day", "Week", "Month"],
+        )
+    ]
 
-    df_price = get_df_daily_price(date_begin,date_end=date_end)
+    answers = inquirer.prompt(questions)
+    rebalance_period = answers['option']
+    
+    df_price = get_df_daily_price(pool, date_begin,date_end=date_end)
     print(df_price.head())
-    df_fee = get_df_daily_fees(date_begin = date_begin, date_end=date_end)
+    df_fee = get_df_daily_fees(pool, date_begin = date_begin, date_end=date_end)
     df = get_df_comb_price_fee(df_price, df_fee)
     print("\n check df")
     print(df.head())
-    df_result = get_full_range_performance(range_down, df, benchmark_range=benchmark_range)
-
+    if rebalance_period == "Day":
+        rebalance_period = "D"
+    elif rebalance_period == "Week":
+        rebalance_period = "W"
+    elif rebalance_period == "Month":
+        rebalance_period = "M"
+    df_result = get_full_range_performance(range_down, df, rebalance_period, benchmark_range)
     result_file_name = 'output/eth_btc_lp_range_result_v3.csv' 
     df_result.to_csv(result_file_name, index=False)
     print("result saved to ", result_file_name)
