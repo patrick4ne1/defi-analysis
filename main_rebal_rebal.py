@@ -2,12 +2,58 @@ import pandas as pd
 import numpy as np
 import main as m
 from math import sqrt
-
+from web3 import Web3
+from moralis import evm_api
+import sys
+import requests
+import inquirer  
+import datetime
 import lib_logic
 from lib_rebalance import get_lp_asset_qty_after_price_chg
 import lib_rebalance as lib_reb
 
+infura_url = 'https://mainnet.infura.io/v3/7b3313791d464b1b8822f333e9a13476'
+web3 = Web3(Web3.HTTPProvider(infura_url))
 
+# Check if connected to Ethereum
+if not web3.isConnected():
+    print("Failed to connect to the Ethereum network")
+    exit()
+    
+def get_balance(wallet_address):
+
+
+    # ERC20 token contract address and ABI
+    token_address = '0xYourTokenContractAddress'  # Replace with your token contract address
+    token_abi = [
+        # This is a minimal ABI for ERC20 to get balance and name (you may need more functions)
+        {
+            "constant": True,
+            "inputs": [{"name": "owner", "type": "address"}],
+            "name": "balanceOf",
+            "outputs": [{"name": "", "type": "uint256"}],
+            "payable": False,
+            "stateMutability": "view",
+            "type": "function",
+        },
+        {
+            "constant": True,
+            "inputs": [],
+            "name": "name",
+            "outputs": [{"name": "", "type": "string"}],
+            "payable": False,
+            "stateMutability": "view",
+            "type": "function",
+        },
+    ]
+
+    # Create the contract instance
+    contract = web3.eth.contract(address=token_address, abi=token_abi)
+
+    # Get the token balance
+    balance = contract.functions.balanceOf(wallet_address).call()
+    balance_decimal = web3.fromWei(balance, 'ether')  # Adjust based on token decimals
+  
 def get_portfolio_initial_value(starting_price, initial_qty_0_and_1 = None):
         if initial_qty_0_and_1 is None:
             initial_qty1 = 1 /2 
@@ -72,7 +118,6 @@ def portfolio_norebalance_fixed_range(df, range_down, range_up, initial_qty_0_an
     df[ 'price_range_up'] = range_price_up
     df[ 'price_range_down'] = range_price_down
     df[ 'b_within_range'] =  ps_b_within_range
-
 
     fee_yield =boost_factor* (df['daily_fee_rate']* ps_b_within_range ).sum()
     end_qty0, end_qty1 = end_qty0 * (1+fee_yield), end_qty1*(1+fee_yield)
@@ -189,7 +234,7 @@ def mav_pool_get_earn_pct(string_bin_pos_0, string_bin_pos_new, p0, p_new, price
     return pct
 
 
-def portfolio_rebal_follow_p(df, range_down, range_up, initial_qty_0_and_1 = None, benchmark_avg_yld_range = -0.1 , follow_mode = 'both'  ):
+def portfolio_rebal_follow_p(df, range_down, range_up, initial_qty_0_and_1 = None, follow_mode = 'both', benchmark_avg_yld_range = -0.1  ):
     
     df.sort_index(ascending=True)
     
@@ -500,60 +545,198 @@ def portfolio_rebal_recentre(df, range_down, range_up, initial_qty_0_and_1 = Non
 
 
 
-def get_performance_given_scenario(date_begin= '2021-12-09', date_end= '2022-09-09'):
+def get_performance_given_scenario(pool_address, date_begin= '2021-12-09', date_end= '2022-09-09', initial_qty0_and_qty1 = None):
 
-    df_price = m.get_df_daily_price(date_begin,date_end)
-    df_fee = m.get_df_daily_fees(date_begin, date_end)
+    df_price = m.get_df_daily_price(pool_address, date_begin,date_end)
+    df_fee = m.get_df_daily_fees(pool_address, date_begin, date_end)
     df = m.get_df_comb_price_fee(df_price, df_fee)
     
     print("\ndf date", df['date'].max(), df['date'].min())
 
-    df_noLP = portfolio_noLP_justhold(df)
+    df_noLP = portfolio_noLP_justhold(df, initial_qty0_and_qty1)
 
     range_down = -0.15 # yearly no rebalance
     range_up = -1*range_down/(1+range_down) 
-    df_noreb_fixed_range = portfolio_norebalance_fixed_range(df.copy(), range_down, range_up )
+    df_noreb_fixed_range = portfolio_norebalance_fixed_range(df.copy(), range_down, range_up, initial_qty0_and_qty1)
 
     range_down = -0.1 # recenter-methodology
     range_up = -1*range_down/(1+range_down) 
-    df_rebal_recentre, df_rst = portfolio_rebal_recentre(df.copy(), range_down, range_up )
+    df_rebal_recentre, df_rst = portfolio_rebal_recentre(df.copy(), range_down, range_up, initial_qty0_and_qty1)
 
     range_down = -0.05
     range_up = -1*range_down/(1+range_down) 
-    df_rebal_blsh, df_rst = portfolio_rebal_buylowsellhigh_predict(df.copy(), range_down, range_up )
+    df_rebal_blsh, df_rst = portfolio_rebal_buylowsellhigh_predict(df.copy(), range_down, range_up, initial_qty0_and_qty1)
 
     range_down = -0.01
     range_up = -1*range_down/(1+range_down)
-    df_rebal_md_both, df_rst = portfolio_rebal_follow_p (df.copy(), range_down, range_up, follow_mode = 'both')
-    df_rebal_md_right, df_rst = portfolio_rebal_follow_p (df.copy(), range_down, range_up, follow_mode = 'right')
-    df_rebal_md_left, df_rst = portfolio_rebal_follow_p (df.copy(), range_down, range_up, follow_mode = 'left')
+    df_rebal_md_both, df_rst = portfolio_rebal_follow_p (df.copy(), range_down, range_up, initial_qty0_and_qty1, follow_mode = 'both')
+    df_rebal_md_right, df_rst = portfolio_rebal_follow_p (df.copy(), range_down, range_up, initial_qty0_and_qty1, follow_mode = 'right')
+    df_rebal_md_left, df_rst = portfolio_rebal_follow_p (df.copy(), range_down, range_up, initial_qty0_and_qty1, follow_mode = 'left')
 
     df_1scen = pd.concat((df_noLP, df_noreb_fixed_range, df_rebal_recentre,  df_rebal_blsh, df_rebal_md_both, df_rebal_md_right, df_rebal_md_left))
     df_1scen.index = ['noLP', "fixed", "swap_recntr", "rg_blsh", 'md-both', 'md-right', 'md-left']
-    return df_1scen[['end_value_quote']]
+    return df_1scen[['begin_value_quote', 'end_value_quote']]
+
+# ['0x4585fe77225b41b697c938b018e2ac67ac5a20c0' , 'WBTC' ,'WETH', 0.0005],
+# ['0xc7bbec68d12a0d1830360f8ec58fa599ba1b0e9b', 'WETH', 'USDT', 0.01],
+# ['0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640' , 'USDC', 'WETH', ],
     
+def select_pool(wallet_addr):
+    if wallet_addr == '0x0aff782b30a81eb4d4104eb9bf0ddb0a19920981':
+        return ['WETH/USDT', 'WBTC/WETH']
+    elif wallet_addr == '0xee8595c67193c49ceac73cbeb9c0efa83ef00f62':
+        return ['WETH/USDT', 'USDC/WETH']
+    elif wallet_addr == '0x9c7e0d69b96c365b22cbf2ec1f9cad761ff696e5':
+        return ['WBTC/WETH']
+    elif wallet_addr == '0x8f4daa33706d70677fd69e4e0d47e595bc820e95':
+        return ['USDC/WETH' , 'WETH/USDT']
+    else:
+        return ['WETH/USDT', 'USDC/WETH' , 'WBTC/WETH']
 
+def pool_address(symbol):
+    if symbol == 'WETH/USDT':
+        return '0xc7bbec68d12a0d1830360f8ec58fa599ba1b0e9b'
+    elif symbol == 'WBTC/WETH':
+        return '0x4585fe77225b41b697c938b018e2ac67ac5a20c0'
+    elif symbol == 'USDC/WETH':
+        return '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640'
+    elif symbol == 'DAI/USDC':
+        return '0x5777d92f208679db4b9778590fa3cab3ac9e2168'
+    elif symbol == 'WETH/WSTETH':
+        return '0x109830a1aaad605bbf02a9dfa7b0b92ec2fb7daa'
 
-df_scenarios = lib_reb.get_lp_evaluation_scenarios()
-print(df_scenarios)
+def token_address(token_name):
+    if token_name == 'WETH':
+        return '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'
+    elif token_name == 'WBTC':
+        return '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599'
+    elif token_name == 'USDT':
+        return '0xdac17f958d2ee523a2206206994597c13d831ec7'
+    elif token_name == 'USDC':
+        return '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
+    elif token_name == 'DAI':
+        return '0x6b175474e89094c44da98b954eedeac495271d0f'
+    elif token_name == 'WSTETH':
+        return '0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0'
 
-method_names = ['noLP', "fixed", "swap_recntr", "rg_blsh", 'md-both', 'md-right', 'md-left']
-df_all_acen = pd.DataFrame(columns=method_names)
-df_all_start = df_all_acen.copy()
+def ask_option():
+    
+    wallet_addr = input("Your wallet address: ")
 
+    questions = [
+        inquirer.List('option',
+            message="Choose one",
+            choices=select_pool(wallet_addr),
+        ),
+    ]
 
-for index, row in df_scenarios.iterrows():
-    date_begin = row["date_begin"]
-    date_end = row["date_end"]
-    df_scen = get_performance_given_scenario(date_begin, date_end)
-    df_all_acen.loc[len(df_all_acen)] = np.array(df_scen["end_value_quote"])
-    # df_all_start.loc[len(df_all_acen)] = np.array(df_scen["begin_value_quote"])
+    answers = inquirer.prompt(questions)
+    token0 = answers['option'].split('/')[0]
+    token1 = answers['option'].split('/')[1]
+    pool = pool_address(answers['option'])
+    return wallet_addr, token0, token1, pool
+    
+erc20_abi = [
+    {
+        "constant": True,
+        "inputs": [{"name": "_owner", "type": "address"}],
+        "name": "balanceOf",
+        "outputs": [{"name": "balance", "type": "uint256"}],
+        "payable": False,
+        "stateMutability": "view",
+        "type": "function"
+    }
+]
 
-df_all_acen.index = df_scenarios['scenario_name']
-df_divided = df_all_acen.apply(lambda row: row / row.iloc[0], axis=1)
+# Function to get wallet balance
+def get_wallet_token_asset(wallet_address, token_name):
+    
+    wallet_address = web3.toChecksumAddress(wallet_address)
+    token = token_address(token_name)
+    token = web3.toChecksumAddress(token)
+    token_contract = web3.eth.contract(address=token, abi=erc20_abi)
+    
+    # Get token balance
+    balance = token_contract.functions.balanceOf(wallet_address).call()
+    
+    return balance
 
-print("Result: ", df_all_acen)
-print(df_all_start)
-print(df_divided)
+def get_wallet_created_at(wallet_address):
+    
+    params = {
+        "address": wallet_address
+    }
+    
+    result = evm_api.wallets.get_wallet_active_chains(
+        api_key=api_key,
+        params=params,
+    )
+    if result['active_chains'][0]['first_transaction'] == None:
+        print("There are no transactions with ", wallet_address)
+        return sys.exit(1)
+    return result['active_chains'][0]['first_transaction']['block_timestamp']
+        
+# Function to get the current price of Ether
+def get_eth_price():
+    url = 'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd'
+    response = requests.get(url)
+    data = response.json()
+    return data['ethereum']['usd']
 
-#df_all_acen.to_clipboard()
+def get_balance_with_proportion(balance, price):
+    token0_balance = balance / (1 + float(price))
+    token1_balance = balance * float(price) / (1 + float(price))
+    return token0_balance, token1_balance
+
+api_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjJiNzBmMjg4LTM2ZmEtNDVmMi04MDhkLTRhMWY4Mjk2MmRjOSIsIm9yZ0lkIjoiNDA0NTY3IiwidXNlcklkIjoiNDE1NzA3IiwidHlwZUlkIjoiZDRmNTE5YTQtODdlOS00OGVlLWE3MWEtNTQ3NjE4OWQ2MjkwIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3MjM1ODYxNTgsImV4cCI6NDg3OTM0NjE1OH0.GSDzSJKfE2aM4Z5WrAUfs7kEVw1CrLLaL5-lyGMOFrc"
+
+if __name__ == "__main__":
+        
+    wallet_addr, token0, token1, pool = ask_option()
+    print("Wallet: ", wallet_addr, "Pool: ", pool)
+    
+    token0_balance = get_wallet_token_asset(wallet_addr, token0)
+    token1_balance = get_wallet_token_asset(wallet_addr, token1)
+    print(token0, ": ", token0_balance, ", ", token1, ": ", token1_balance)
+    
+    checksum_address = web3.toChecksumAddress(wallet_addr)
+    balance_wei = web3.eth.get_balance(checksum_address)
+    balance_ether = web3.fromWei(balance_wei, 'ether')
+    usd_balance = float(get_eth_price()) * float(balance_ether)
+    print("Eth: ", usd_balance)
+    
+    # if token0_balance == 0 | token1_balance == 0:
+    #     print("You have no balance for LP mining")
+    #     sys.exit(1)
+    
+    wallet_created_at = get_wallet_created_at(wallet_addr).split('T')[0]
+    print("Your wallet created at ", wallet_created_at)
+    
+    df_scenarios = lib_reb.get_lp_evaluation_scenarios(pool, wallet_created_at)
+    
+    print(df_scenarios)
+    if df_scenarios['begin_price'].isna().any() == True :
+        print("=======================================================")
+        print("Not enough historical data from Uniswap V3 Subgraph!")
+        sys.exit(1)
+
+    method_names = ['noLP', "fixed", "swap_recntr", "rg_blsh", 'md-both', 'md-right', 'md-left']
+    df_all_acen = pd.DataFrame(columns=method_names)
+    df_all_start = df_all_acen.copy()
+
+    for index, row in df_scenarios.iterrows():
+        date_begin = row["date_begin"]
+        date_end = row["date_end"]
+        begin_token0 = row['begin_price']
+        token0_balance, token1_balance = get_balance_with_proportion(usd_balance, begin_token0)
+        df_scen = get_performance_given_scenario(pool, date_begin, date_end, [token0_balance, token1_balance])
+        df_all_acen.loc[len(df_all_acen)] = np.array(df_scen["end_value_quote"]) 
+        df_all_start.loc[len(df_all_acen)] = np.array(df_scen["begin_value_quote"])
+
+    df_all_acen.index = df_scenarios['scenario_name']
+    df_divided = df_all_acen.apply(lambda row: row / row.iloc[0], axis=1)
+
+    print("Result: ", df_all_acen)
+    print(df_divided)
+
+    #df_all_acen.to_clipboard()

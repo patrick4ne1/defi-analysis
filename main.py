@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import lib_logic as lib_lgc
 import lib_data
 import sys
-import inquirer  
+import inquirer
 import main_rebal_rebal
 from lib_const import pool_info_list
 
