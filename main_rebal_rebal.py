@@ -582,16 +582,16 @@ def get_performance_given_scenario(pool_address, date_begin= '2021-12-09', date_
 # ['0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640' , 'USDC', 'WETH', ],
     
 def select_pool(wallet_addr):
-    if wallet_addr == '0x0aff782b30a81eb4d4104eb9bf0ddb0a19920981':
-        return ['WETH/USDT', 'WBTC/WETH']
-    elif wallet_addr == '0xee8595c67193c49ceac73cbeb9c0efa83ef00f62':
-        return ['WETH/USDT', 'USDC/WETH']
-    elif wallet_addr == '0x9c7e0d69b96c365b22cbf2ec1f9cad761ff696e5':
-        return ['WBTC/WETH']
-    elif wallet_addr == '0x8f4daa33706d70677fd69e4e0d47e595bc820e95':
-        return ['USDC/WETH' , 'WETH/USDT']
-    else:
-        return ['WETH/USDT', 'USDC/WETH' , 'WBTC/WETH']
+    # if wallet_addr == '0x0aff782b30a81eb4d4104eb9bf0ddb0a19920981':
+    #     return ['WETH/USDT', 'WBTC/WETH']
+    # elif wallet_addr == '0xee8595c67193c49ceac73cbeb9c0efa83ef00f62':
+    #     return ['WETH/USDT', 'USDC/WETH']
+    # elif wallet_addr == '0x9c7e0d69b96c365b22cbf2ec1f9cad761ff696e5':
+    #     return ['WBTC/WETH']
+    # elif wallet_addr == '0x8f4daa33706d70677fd69e4e0d47e595bc820e95':
+    #     return ['USDC/WETH' , 'WETH/USDT']
+    # else:
+    return ['WETH/USDT', 'USDC/WETH' , 'WBTC/WETH', 'USDC/USDT', 'DAI/USDC', 'WSTETH/WETH']
 
 def pool_address(symbol):
     if symbol == 'WETH/USDT':

@@ -5,7 +5,6 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="eec09551-c055-4d73-8312-80a15dc09629" name="Changes" comment="feat: periodic indexing">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -69,7 +68,8 @@
       <updated>1723730687953</updated>
       <workItem from="1723730688859" duration="94000" />
       <workItem from="1724169992905" duration="1196000" />
-      <workItem from="1724184098286" duration="1410000" />
+      <workItem from="1724184098286" duration="2331000" />
+      <workItem from="1724781508769" duration="691000" />
     </task>
     <task id="LOCAL-00001" summary="feat: backtest with argument of wallet address and pair">
       <option name="closed" value="true" />
