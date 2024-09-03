@@ -4,8 +4,8 @@ pool_info_list = [
     ['0xc7bbec68d12a0d1830360f8ec58fa599ba1b0e9b', 'WETH', 'USDT', 0.01],
     ['0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640' , 'USDC', 'WETH', ],
     ['0x5777d92f208679db4b9778590fa3cab3ac9e2168' , 'DAI', 'USDC', ], 
-    ['0x109830a1aaad605bbf02a9dfa7b0b92ec2fb7daa', 'WSTETH', 'WETH',],
-    ['0x3416cF6C708Da44DB2624D63ea0AAef7113527C6', 'USDC', 'USDT', 0.0001],
+    ['0x109830a1aaad605bbf02a9dfa7b0b92ec2fb7daa', 'wstETH', 'WETH',],
+    ['0x3416cf6c708da44db2624d63ea0aaef7113527c6', 'USDC', 'USDT', 0.0001],
 ]
 
 pool_info_list_polygon = [
@@ -52,14 +52,14 @@ price_token_list =[
     ['ethereum',  'ETH']
 ]
 
-def get_pool_filename(pool_address, token0=None, token1=None):    
+def get_pool_filename(pool_address, token0=None, token1=None):   
+    print(pool_address) 
     if token0 is None or token1 is None:
         for pool_info in pool_info_list:
             if pool_info[0] == pool_address:
                 token0 = pool_info[1]
                 token1 = pool_info[2]
                 break
-        
     file_name_addon = "_".join([pool_address, token0, token1])
     file_name = 'output/pool_data_' + file_name_addon + '.csv'
     return file_name

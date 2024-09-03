@@ -246,7 +246,7 @@ def main ():
     questions = [
         inquirer.List('option',
             message="Choose one",
-            choices=['USDC/WETH' , 'WBTC/WETH'],
+            choices=['WETH/USDT', 'USDC/WETH' , 'WBTC/WETH', 'DAI/USDC', 'WSTETH/WETH', 'USDC/USDT'],
         ),
     ]
     answers = inquirer.prompt(questions)

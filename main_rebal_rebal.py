@@ -602,8 +602,10 @@ def pool_address(symbol):
         return '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640'
     elif symbol == 'DAI/USDC':
         return '0x5777d92f208679db4b9778590fa3cab3ac9e2168'
-    elif symbol == 'WETH/WSTETH':
+    elif symbol == 'WSTETH/WETH':
         return '0x109830a1aaad605bbf02a9dfa7b0b92ec2fb7daa'
+    elif symbol == 'USDC/USDT':
+        return '0x3416cf6c708da44db2624d63ea0aaef7113527c6'
 
 def token_address(token_name):
     if token_name == 'WETH':
